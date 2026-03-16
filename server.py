@@ -29,16 +29,28 @@ mcp = FastMCP("Galaxy Classification")
 _QWEN_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 _DEFAULT_MODEL = "qwen-vl-max"
 
-_SYSTEM_PROMPT = (
-    "You are an expert astronomer specialising in galaxy morphology. "
-    "When given an image of a galaxy, classify it according to the Hubble "
-    "sequence (E0–E7 for ellipticals, S0 for lenticulars, Sa–Sd for normal "
-    "spirals, SBa–SBd for barred spirals, Irr for irregulars) or other "
-    "relevant morphological types. "
-    "Always provide: (1) the morphological type, (2) key visual features "
-    "that led to this classification, and (3) a confidence level "
-    "(High / Medium / Low)."
-)
+# Load classification instructions from markdown file
+_INSTRUCTION_FILE = Path(__file__).parent / "galaxy_classification_instruction.md"
+
+if _INSTRUCTION_FILE.exists():
+    _CLASSIFICATION_INSTRUCTIONS = _INSTRUCTION_FILE.read_text()
+else:
+    _CLASSIFICATION_INSTRUCTIONS = """
+    You are an expert galaxy morphologist. Please analyze galaxy images with
+    isophotal contours and provide morphological classification.
+    """
+
+_SYSTEM_PROMPT = f"""You are a galaxy morphology classification assistant.
+
+{_CLASSIFICATION_INSTRUCTIONS}
+
+When analyzing images, always:
+- Use only unmasked regions for analysis
+- Consider grayscale brightness distribution and isophotal contours together
+- Follow the sequential decision process outlined above
+- Output results in the specified format
+- Be cautious and use "Uncertain" when evidence is insufficient
+"""
 
 
 def _get_client() -> OpenAI:
@@ -93,7 +105,16 @@ def _image_content(image_source: str) -> dict:
 
 @mcp.tool()
 def classify_galaxy(image_source: str, model: str = _DEFAULT_MODEL) -> str:
-    """Classify a galaxy image using the Qwen VL vision-language model.
+    """Classify a galaxy image using isophotal contours following detailed morphological criteria.
+
+    This tool analyzes galaxy images with mask overlays (red regions) and isophotal
+    contours (cyan, lime, magenta) to determine:
+    - Number of independent galaxies
+    - Morphology (disk vs elliptical)
+    - Presence of bars, spiral arms, and tidal tails
+
+    The classification follows a rigorous decision process based on contour analysis
+    as specified in galaxy_classification_instruction.md.
 
     Args:
         image_source: Either a public HTTP/HTTPS URL pointing to the galaxy
@@ -101,12 +122,22 @@ def classify_galaxy(image_source: str, model: str = _DEFAULT_MODEL) -> str:
                       formats include JPEG, PNG, GIF, WebP, BMP, TIFF, and
                       FITS (FITS files must be pre-rendered to a standard
                       raster format before being passed here).
+                      Images should include:
+                      - Red mask regions indicating unreliable/contaminated areas
+                      - Grayscale intensity (black=low, white=high signal)
+                      - Cyan/lime/magenta isophotal contours for structure analysis
         model: Qwen VL model to use.  Defaults to ``qwen-vl-max``.  Other
                options include ``qwen-vl-plus``.
 
     Returns:
-        A plain-text classification report that includes the morphological
-        type, key visual features, and a confidence level.
+        A structured classification report including:
+        1. Mask count
+        2. Galaxy count
+        3. Morphology judgment
+        4. Bar presence
+        5. Spiral arm presence
+        6. Tidal tail presence
+        7. Structural feature description with reasoning
     """
     client = _get_client()
 
@@ -123,9 +154,18 @@ def classify_galaxy(image_source: str, model: str = _DEFAULT_MODEL) -> str:
                     {
                         "type": "text",
                         "text": (
-                            "Please classify this galaxy image and describe "
-                            "its morphological type, key visual features, "
-                            "and your confidence level."
+                            "Please analyze this galaxy image following the classification "
+                            "instructions. Provide your analysis in the specified output format:\n\n"
+                            "Source ID: [Unknown]\n"
+                            "1. Mask count:\n"
+                            "2. Galaxy count:\n"
+                            "3. Galaxy morphology judgment:\n"
+                            "4. Bar:\n"
+                            "5. Spiral arms:\n"
+                            "6. Tidal tail:\n"
+                            "7. Structural feature description:\n\n"
+                            "Remember: Red regions are masked areas to ignore. Cyan/lime/magenta "
+                            "contours show isophotal structure. Darker = lower signal, brighter = higher signal."
                         ),
                     },
                 ],
@@ -144,16 +184,22 @@ def describe_galaxy(image_source: str, question: str, model: str = _DEFAULT_MODE
     """Ask a custom astronomy question about a galaxy image.
 
     This is a more flexible companion to ``classify_galaxy`` that lets you
-    pose any question about the galaxy shown in the image.
+    pose any question about the galaxy shown in the image. The model uses
+    the same morphological expertise from galaxy_classification_instruction.md.
 
     Args:
         image_source: Either a public HTTP/HTTPS URL pointing to the galaxy
-                      image, or an absolute local file path.
+                      image, or an absolute local file path. Images should
+                      include mask overlays (red) and isophotal contours
+                      (cyan, lime, magenta) for optimal analysis.
         question: The question you want to ask about the galaxy image.
+                  The model will use its expertise in galaxy morphology
+                  and contour analysis to answer.
         model: Qwen VL model to use.  Defaults to ``qwen-vl-max``.
 
     Returns:
-        The model's answer to your question about the galaxy.
+        The model's answer to your question about the galaxy, based on
+        morphological analysis of contours and brightness distribution.
     """
     client = _get_client()
 
