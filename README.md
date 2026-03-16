@@ -40,14 +40,31 @@ source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
 # 3. Install dependencies
 pip install -r requirements.txt
+
+# 4. Copy .env.example to .env and add your API key
+cp .env.example .env
+# Then edit .env and replace sk-your-api-key-here with your actual API key
 ```
 
 ---
 
 ## Configuration
 
-The server reads your Qwen API key from the environment.  Set **one** of the
-following variables before starting the server:
+The server reads your Qwen API key from the environment.  Choose **one** of the
+following methods:
+
+### Method 1: Using a `.env` file (recommended)
+
+Create a `.env` file in the project root:
+
+```bash
+DASHSCOPE_API_KEY=sk-your-actual-api-key-here
+```
+
+The `.env` file is already in `.gitignore` to prevent accidentally committing
+your API key.
+
+### Method 2: Environment variable
 
 ```bash
 # Preferred variable name
@@ -93,21 +110,31 @@ Add the following block to your Claude Desktop configuration file
   "mcpServers": {
     "galaxy-classification": {
       "command": "python",
-      "args": ["/absolute/path/to/galaxy_classification_mcp/server.py"],
-      "env": {
-        "DASHSCOPE_API_KEY": "sk-..."
-      }
+      "args": ["/absolute/path/to/galaxy_classification_mcp/server.py"]
     }
   }
 }
 ```
 
 Replace `/absolute/path/to/galaxy_classification_mcp/server.py` with the
-actual path on your machine and fill in your API key.
+actual path on your machine.
+
+**Note:** The API key should be stored in a `.env` file in the project directory
+(see [Configuration](#configuration) above). Alternatively, you can pass it
+directly in the config by adding an `"env"` block with `"DASHSCOPE_API_KEY"`.
 
 ---
 
 ## Connecting to Claude Code (CLI)
+
+If you have a `.env` file with your API key (recommended):
+
+```bash
+claude mcp add galaxy-classification \
+  -- python /absolute/path/to/galaxy_classification_mcp/server.py
+```
+
+Alternatively, pass the API key directly:
 
 ```bash
 claude mcp add galaxy-classification \
@@ -160,6 +187,8 @@ Use qwen-vl-plus to classify: https://example.com/galaxy.jpg
 galaxy_classification_mcp/
 ├── server.py          # MCP server (FastMCP, Qwen VL tools)
 ├── requirements.txt   # Python dependencies
+├── .env.example       # Example environment variables template
+├── .env               # Your actual API key (not in git)
 ├── pyproject.toml     # Project metadata
 └── README.md          # This file
 ```

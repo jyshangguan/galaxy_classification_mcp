@@ -8,6 +8,11 @@ galaxy images by morphological type (e.g. spiral, elliptical, irregular).
 import base64
 import os
 from pathlib import Path
+
+# Load environment variables from .env file if it exists
+from dotenv import load_dotenv
+load_dotenv()
+
 from mcp.server.fastmcp import FastMCP
 from openai import OpenAI
 
