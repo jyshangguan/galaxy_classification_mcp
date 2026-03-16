@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=70", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "galaxy-classification-mcp"
+version = "0.1.0"
+description = "MCP server that uses Qwen VL to classify galaxy images"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = [
+    "mcp[cli]>=1.23.0",
+    "openai>=1.0.0",
+]
+
+[project.scripts]
+galaxy-classification-mcp = "server:mcp.run"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["server*"]
